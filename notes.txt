@@ -1,0 +1,15 @@
+ATT Normal cost:
+    Paul's bill: $69.41
+    Rob's bill: $62.42
+    Lindsay's bill: $62.42
+    Steve's bill: $62.42
+
+ATT Reduced cost:
+    Paul's bill: $49.01
+    Rob's bill: $42.02
+    Lindsay's bill: $42.02
+    Steve's bill: $42.02
+
+Chris's new number:
+650-745-6756
+
