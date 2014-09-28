@@ -14,6 +14,7 @@ MONTHS = dict((v, i + 1) for i, v in enumerate([
     'feb',
     'mar',
     'apr',
+    'may',
     'jun',
     'jul',
     'aug',

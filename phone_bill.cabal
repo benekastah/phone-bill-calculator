@@ -58,7 +58,7 @@ executable phone_bill
 
   -- Other library packages from which modules are imported.
   build-depends:
-      base >=4.6 && <4.7
+      base >=4.7 && <4.8
     , smtp-mail >=0.1
 
   -- Directories containing source files.
@@ -66,3 +66,5 @@ executable phone_bill
 
   -- Base language which the package is written in.
   default-language:    Haskell2010
+
+  GHC-Options: -Wall

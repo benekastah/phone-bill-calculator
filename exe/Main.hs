@@ -2,20 +2,18 @@
 module Main (main) where
 
 import Numeric (showFFloat)
-import Control.Exception (catch)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, catMaybes)
 import Data.Char (isSpace)
 
 newtype DollarAmount = DollarAmount Float
   deriving (Eq, Ord, Num)
 
 instance Show DollarAmount where
-  show (DollarAmount f) =
-    "$" ++ (showFFloat (Just 2) f "")
+  show (DollarAmount f) = "$" ++ (showFFloat (Just 2) f "")
 
-data PhoneLine = PhoneLine {
-  name :: String,
-  cost :: DollarAmount
+data PhoneLine = PhoneLine
+  { name :: String
+  , cost :: DollarAmount
   }
 
 instance Show PhoneLine where
@@ -37,56 +35,59 @@ getAmount default' = do
            (Just f) -> Just (DollarAmount f)
            Nothing -> Nothing
 
-promptAmount msg default' = do
-  let msg' = case default' of
-             (Just f) -> msg ++ " (" ++ (show (DollarAmount f)) ++ ")"
-             Nothing -> msg
-  putStrLn msg'
+promptAmount msg lineName default' = do
+  putStrLn $ foldr1 (++) $ catMaybes [ fmap (++ ": ") lineName
+                                     , Just $ msg ++ " "
+                                     , fmap (("(" ++) . (++ ")") . show . DollarAmount) default'
+                                     ]
   amt <- getAmount default'
-  case amt of (Just d) -> return d
-              Nothing -> do
-                putStrLn "Invalid input, try again"
-                promptAmount msg default'
+  maybe (promptAmount msg lineName default') return amt
 
-getPhoneLine n = do
-  c <- promptAmount (n ++ "'s costs") Nothing
-  return PhoneLine {name = n, cost = c}
+getPhoneLine defaultCost (n, costs, useDefaults) = do
+  c1 <- if useDefaults
+    then return defaultCost
+    else getCosts $ Just n
+  c2 <- promptAmount "Other costs" (Just n) costs
+  return PhoneLine {name = n, cost = c1 + c2}
 
-getPhoneLines = do
-  let lines = map getPhoneLine ["Paul", "Steve", "Lindsay", "Rob", "Chris"]
+getPhoneLines defaultCost = do
+  let lines = map (getPhoneLine defaultCost) [ ("Paul", Just 6.99, True)
+                                             , ("Steve", Nothing, True)
+                                             , ("Lindsay", Nothing, True)
+                                             , ("Rob", Nothing, True)
+                                             , ("Chris", Nothing, False)
+                                             ]
   lines' <- sequence lines
   return lines'
 
-calculatePhoneLine ceach cshared (PhoneLine {name=n, cost=c}) =
-  PhoneLine {name = n, cost = c + ceach + cshared}
+calculatePhoneLine cshared (PhoneLine {name=n, cost=c}) =
+  PhoneLine {name = n, cost = c + cshared}
 
-calculateCosts lines ceach (DollarAmount cshared) =
-  map (calculatePhoneLine ceach csharedPerLine) lines
+calculateCosts lines (DollarAmount cshared) =
+  map (calculatePhoneLine csharedPerLine) lines
   where
-    numLines = length lines
-    csharedPerLine = DollarAmount (cshared / (fromIntegral numLines))
+    csharedPerLine = DollarAmount (cshared / (fromIntegral $ length lines))
 
 joinPhoneLines :: [PhoneLine] -> String
 joinPhoneLines [] = ""
 joinPhoneLines [ln] = (show ln)
 joinPhoneLines (ln:xs) = (joinPhoneLines [ln]) ++ "\n" ++ (joinPhoneLines xs)
 
+getCosts lineName = do
+  cline <- promptAmount "Mobile Share" lineName (Just 40)
+  clineDiscount <- promptAmount "Mobile Share discount" lineName (Just 25)
+  csurcharges <- promptAmount "Surcharges and fees" lineName Nothing
+  ctaxes <- promptAmount "Government fees & taxes" lineName Nothing
+  return $ (cline - clineDiscount) + csurcharges + ctaxes
+
 main = do
-  ctotal <- promptAmount "Total bill amount:" Nothing
-  cline <- promptAmount "Mobile Share" (Just 40)
-  clineDiscount <- promptAmount "Mobile Share discount" (Just 25)
-  csurcharges <- promptAmount "Surcharges and fees" Nothing
-  ctaxes <- promptAmount "Government fees & taxes" Nothing
-  cother <- promptAmount "Any other costs that apply to everyone equally"
-                         Nothing
-  cshared <- promptAmount "Any other shared costs" Nothing
+  ctotal <- promptAmount "Total bill amount:" Nothing Nothing
   cdata <- promptAmount "Data cost (Mobile Share 10GB with Unlimited Talk & Text)"
+                        Nothing
                         (Just 100)
-  cdiscount <- promptAmount "National Account Discount" (Just 22.73)
-  lines <- getPhoneLines
-  let lines' = (calculateCosts lines
-                               ((cline - clineDiscount) + csurcharges + ctaxes + cother)
-                               (cdata - cdiscount + cshared))
+  cdiscount <- promptAmount "National Account Discount" Nothing (Just 22)
+  lines <- getCosts Nothing >>= getPhoneLines
+  let lines' = calculateCosts lines (cdata - cdiscount)
   let calcTotal = foldl (+) (DollarAmount 0) (map cost lines')
   let result = case ((show ctotal) == (show calcTotal)) of
                True  -> Right lines'
@@ -96,3 +97,5 @@ main = do
                            (show calcTotal))
   putStrLn $ case result of (Right ls) -> joinPhoneLines ls
                             (Left s) -> s
+
+-- vim: ts=2 sts=2 sw=2
